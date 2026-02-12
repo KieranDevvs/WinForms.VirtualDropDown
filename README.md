@@ -25,3 +25,40 @@ The primary goal of this library is to provide a seamless user experience by onl
 
 Clone and build the assembly.
 TODO: provide a nuget package.
+
+##Usage Example
+
+```cs
+public partial class MainForm : Form
+{
+    private Dictionary<int, string> _data = new();
+
+    public MainForm()
+    {
+        InitializeComponent();
+    }
+
+    private async void MainForm_Load(object sender, EventArgs e)
+    {
+        // Simulate asynchronously obtaining data and storing it into memory.
+        await Task.Run(() =>
+        {
+          for (var i = 0; i < 10_000_000; i++)
+          {
+              _data.Add(i, $"Item {i}");
+          }
+        });
+
+        // Assign the collection size to the
+        virtualDropDownList1.ItemCount = _data.Count;
+        virtualDropDownList1.RetrieveItem += VirtualDropDownList1_RetrieveItem;
+    }
+
+    private void VirtualDropDownList1_RetrieveItem(object? sender, RetrieveVirtualItemEventArgs e)
+    {
+        // This method is invoked when the virtual renderer requests items to draw.
+        // Provide the data to it so it knows what text to draw for a given item index.
+        e.Item = new ListViewItem(_data[e.ItemIndex]);
+    }
+}
+```
