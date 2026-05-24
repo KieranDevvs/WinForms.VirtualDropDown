@@ -6,7 +6,9 @@ public class VirtualDropDownList : Form
     private int _hoveredIndex = -1;
     private int _scrollOffset = 0;
     private const int ItemHeight = 20;
+    private const int BottomGap = 4; // extra 1px at bottom to create gap to border
     private readonly VScrollBar _scrollBar;
+    private readonly int _requestedHeight; // height passed by caller (visible items area)
 
     public VirtualDropDownList(VirtualDropDown parent, int width, int height)
     {
@@ -14,7 +16,9 @@ public class VirtualDropDownList : Form
 
         FormBorderStyle = FormBorderStyle.None;
         Width = width;
-        Height = height;
+        // Keep the requested inner height but make the form 1px taller to create the bottom gap
+        _requestedHeight = height + BottomGap;
+        Height = height + BottomGap;
         BackColor = SystemColors.Window;
         DoubleBuffered = true;
         ShowInTaskbar = false;
@@ -24,7 +28,8 @@ public class VirtualDropDownList : Form
         _scrollBar = new VScrollBar
         {
             SmallChange = 1,
-            LargeChange = (height - 4) / ItemHeight
+            // Calculate LargeChange based on the original requested height so visible item count remains unchanged
+            LargeChange = Math.Max(1, (_requestedHeight - 4) / ItemHeight)
         };
         _scrollBar.ValueChanged += OnScrollBarValueChanged;
         Controls.Add(_scrollBar);
@@ -34,7 +39,8 @@ public class VirtualDropDownList : Form
         _scrollBar.Left = width - scrollBarWidth - 1;
         _scrollBar.Top = 1;
         _scrollBar.Width = scrollBarWidth;
-        _scrollBar.Height = height - 2;
+        // Keep scrollbar height matching the requested inner height (original behavior) so scroll range and look are unchanged
+        _scrollBar.Height = _requestedHeight - 2;
 
         MouseWheel += OnMouseWheel;
         MouseMove += OnMouseMove;
@@ -46,7 +52,8 @@ public class VirtualDropDownList : Form
     {
         // Clamp scroll offset to valid range so the last items are always visible
         var totalItems = _parent.GetItemCount();
-        var visibleItems = (Height - 2 + ItemHeight - 1) / ItemHeight;
+        // Use requestedHeight to compute visible items so we don't change how many items are rendered
+        var visibleItems = (_requestedHeight - 2 + ItemHeight - 1) / ItemHeight;
 
         _scrollOffset = Math.Min(_scrollBar.Value, Math.Max(0, totalItems - visibleItems));
         Invalidate();
@@ -65,8 +72,8 @@ public class VirtualDropDownList : Form
         // Update scrollbar properties based on item count
         var totalItems = _parent.GetItemCount();
 
-        // Calculate visible items using ceiling division to fill the space including partial items
-        var visibleItems = (Height - 2 + ItemHeight - 1) / ItemHeight;
+        // Calculate visible items using ceiling division based on requested inner height
+        var visibleItems = (_requestedHeight - 2 + ItemHeight - 1) / ItemHeight;
 
         if (totalItems > visibleItems)
         {
@@ -92,6 +99,7 @@ public class VirtualDropDownList : Form
         for (var i = 0; i < visibleItems && _scrollOffset + i < totalItems; i++)
         {
             var itemIndex = _scrollOffset + i;
+            // Keep same top offset as before so items render in the same positions; the form is just 1px taller
             var y = 2 + i * ItemHeight;
 
             // Draw hover/selection background
